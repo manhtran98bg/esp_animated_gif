@@ -10,7 +10,6 @@ static bool dmaBuf = 0;
 
 static uint16_t buffer[BUFFER_SIZE * 10];
 
-// Callback vẽ từng dòng của frame
 static esp_port_draw_callback *esp_draw = NULL;
 static uint8_t startX = 0;
 static uint8_t startY = 0;
@@ -20,14 +19,8 @@ static void flush_block(int x, int y, int w, int h)
         esp_draw(x, y, w, h, &buffer[0]);
 }
 
-#define BATCH_LINES 10
-
-static uint16_t lineBuffer[BATCH_LINES][240];
-static int lineIndex = 0;
-
 static void gif_draw(GIFDRAW *pDraw)
 {
-    // ESP_LOGI(TAG, "iX %d, iY %d, y%d, iWidth %d, iHeight %d", pDraw->iX, pDraw->iY, pDraw->y, pDraw->iWidth, pDraw->iHeight);
     uint8_t *s;
     uint16_t *d, *usPalette;
     int x, y, iWidth, iCount;
@@ -110,7 +103,7 @@ static void gif_draw(GIFDRAW *pDraw)
         else
             for (iCount = 0; iCount < BUFFER_SIZE; iCount++)
                 usTemp[dmaBuf][iCount] = usPalette[*s++];
-        // esp_draw(pDraw->iX, y, iCount, 1, &usTemp[dmaBuf][0]);
+        esp_draw(pDraw->iX, y, iCount, 1, &usTemp[dmaBuf][0]);
         dmaBuf = !dmaBuf;
         iWidth -= iCount;
         // Loop if pixel buffer smaller than width
@@ -123,32 +116,11 @@ static void gif_draw(GIFDRAW *pDraw)
             else
                 for (iCount = 0; iCount < BUFFER_SIZE; iCount++)
                     usTemp[dmaBuf][iCount] = usPalette[*s++];
-            // esp_draw(pDraw->iX, y, iCount, 1, &usTemp[dmaBuf][0]);
+            esp_draw(pDraw->iX, y, iCount, 1, &usTemp[dmaBuf][0]);
             dmaBuf = !dmaBuf;
             iWidth -= iCount;
         }
     }
-    // int y = pDraw->iY + pDraw->y;
-    // int width = pDraw->iWidth;
-    // const uint16_t *palette = pDraw->pPalette;
-    // const uint8_t *src = pDraw->pPixels;
-
-    // // Chuyển 8-bit → 16-bit
-    // for (int x = 0; x < width; x++) {
-    //     if (pDraw->pPixels[x] == pDraw->ucTransparent)
-    //             pDraw->pPixels[x] = pDraw->ucBackground;
-    //     lineBuffer[lineIndex][x] = palette[src[x]];
-    // }
-        
-
-    // lineIndex++;
-
-    // if (lineIndex == BATCH_LINES || pDraw->y == pDraw->iHeight - 1)
-    // {
-    //     int startY = pDraw->iY + pDraw->y - lineIndex + 1;
-    //     esp_draw(pDraw->iX, startY, width, lineIndex, (uint16_t *)lineBuffer);
-    //     lineIndex = 0;
-    // }
 }
 
 void esp_GIF_begin(unsigned char ucPaletteType, int maxWidth, int maxHeight, esp_port_draw_callback *pfnDraw)
@@ -161,16 +133,7 @@ void esp_GIF_begin(unsigned char ucPaletteType, int maxWidth, int maxHeight, esp
     maxH = maxHeight;
     if (pfnDraw)
         esp_draw = pfnDraw;
-
-    // pFrameBuffer = (uint8_t *)malloc(maxW * (maxH + 2));
-    // if (!pFrameBuffer)
-    // {
-    //     ESP_LOGI(TAG, "Allocated failed");
-    //     return;
-    // }
     GIF_begin(&s_gif, ucPaletteType);
-    // s_gif.ucDrawType = GIF_DRAW_COOKED;
-    // s_gif.pFrameBuffer = pFrameBuffer;
 }
 
 int esp_GIF_openFile(const char *path)
@@ -196,16 +159,4 @@ void esp_GIF_reset()
 int esp_GIF_playFrame(int *delayMilliseconds, void *pUser)
 {
     return GIF_playFrame(&s_gif, delayMilliseconds, pUser);
-}
-int esp_GIF_setDrawType(int iType)
-{
-    if (iType != GIF_DRAW_RAW && iType != GIF_DRAW_COOKED)
-        return GIF_INVALID_PARAMETER; // invalid drawing mode
-    s_gif.ucDrawType = (uint8_t)iType;
-    return GIF_SUCCESS;
-}
-
-void esp_GIF_setFrameBuf(void *pFrameBuf)
-{
-    s_gif.pFrameBuffer = (uint8_t *)pFrameBuf;
 }
