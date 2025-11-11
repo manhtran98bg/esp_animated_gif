@@ -13,4 +13,4 @@ idf_component_register(
     REQUIRES ${pub_requires}
     PRIV_REQUIRES ${priv_requires}
 )
-
+target_compile_definitions(${COMPONENT_LIB} PRIVATE __LINUX__)
